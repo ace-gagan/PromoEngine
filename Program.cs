@@ -1,3 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PromoEngine
+{
     class Program
     {
         static void Main(string[] args)
@@ -17,198 +25,197 @@
             }
 
             //get total cost before discount
-            double _totalCost = _products.Sum(item => item._price);
+            float _totalCost = _products.Sum(item => item._price);
 
-            Dictionary<string, float> _allDisc = GetDiscount(_products);
+            CalculatePrice _cp = new CalculatePrice(_products);
+
+            //get  details of all applicable promos
+            Dictionary<string, float> _allDisc = _cp.GetDiscount();
 
             //display Total Costs & Best Discount available on Console
             Console.WriteLine("Total price before promotion: " + _totalCost);
-            Console.WriteLine("Best Discount: " + _allDisc.Values.Max());            
+            Console.WriteLine("Best Discount: " + _allDisc.Values.Max());
+            Console.WriteLine("Applying promotion...");
             Console.WriteLine("Total price after promotion: " + (_totalCost - _allDisc.Values.Max()));
             Console.ReadLine();
         }
+    }
 
-        private static Dictionary<string, float> GetDiscount(List<Product> _products)
-        {            
-            IPromotion iPromoOnA = new PromoOnA();
-            IPromotion iPromoOnB = new PromoOnB();
-            IPromotion iPromoOnCD = new PromoOnCD();
+    public interface IPromotion
+    {
+        bool _isPromoFulfilled(List<Product> _product);
+        float ApplyPromo_GetDiscount(List<Product> _product);
+        //string getPromoDesc();
+
+    }
+
+    public class PromoOnSKU : IPromotion
+    {
+        string _promoDesc = "Promo on 'n' items of an SKU";
+        int _countSKU = 0;
+        float _costSKU = 0;
+        public float _discountedPrice = 0;
+        float _discountOnUnit = 0;
+        string _promoOnID = "";
+
+        public PromoOnSKU(string id, float discountedPrice, float discountOnUnit)
+        {
+            _promoOnID = id;
+            _discountedPrice = discountedPrice;
+            _discountOnUnit = discountOnUnit;
+        }
+
+        public bool _isPromoFulfilled(List<Product> _products)
+        {
+            bool _isPromoFulfilled = false;
+
+            foreach (Product p in _products)
+            {
+                if (p._id == _promoOnID)
+                {
+                    _countSKU++;
+                    if (_costSKU == 0)
+                    {
+                        _costSKU = p._price;
+                    }
+                }
+            }
+            if (_countSKU >= _discountOnUnit)
+            {
+                _isPromoFulfilled = true;
+            }
+            return _isPromoFulfilled;
+        }
+
+        public float ApplyPromo_GetDiscount(List<Product> _product)
+        {
+            float _discPriceDiff = 0;
+            Console.WriteLine("Checking Promo on " + _promoOnID + ": " + _promoDesc + "...");
+
+            _discPriceDiff = _costSKU * _discountOnUnit - _discountedPrice;
+            _discPriceDiff = _discPriceDiff * (Int32)(_countSKU / _discountOnUnit);
+
+            return _discPriceDiff;
+        }
+    }
+
+    public class PromoOnSKU1SKU2 : IPromotion
+    {
+        public string _promoDesc = "Promo on 'x' items of SKU1 & 'y' items of SKU2";
+        public float _discountedPrice = 30;
+        public float _discountOnUnitSKU1 = 1;
+        public float _discountOnUnitSKU2 = 1;
+        int _countSKU1 = 0;
+        int _countSKU2 = 0;
+        float _costSKU1 = 0;
+        float _costSKU2 = 0;
+        string _promoOnID1 = "";
+        string _promoOnID2 = "";
+
+        public PromoOnSKU1SKU2(string idSKU1, string idSKU2, float discountOnUnitSKU1, float discountOnUnitSKU2, float discountedPrice)
+        {
+            _promoOnID1 = idSKU1;
+            _promoOnID2 = idSKU2;
+
+            _discountOnUnitSKU1 = discountOnUnitSKU1;
+            _discountOnUnitSKU2 = discountOnUnitSKU2;
+
+            _discountedPrice = discountedPrice;
+
+        }
+
+        public bool _isPromoFulfilled(List<Product> _products)
+        {
+            bool _isPromoFulfilled = false;
+
+            foreach (Product p in _products)
+            {
+                if (p._id == _promoOnID1)
+                {
+                    _countSKU1++;
+                    if (_costSKU1 == 0)
+                    {
+                        _costSKU1 = p._price;
+                    }
+                }
+                else if (p._id == _promoOnID2)
+                {
+                    _countSKU2++;
+                    if (_costSKU2 == 0)
+                    {
+                        _costSKU2 = p._price;
+                    }
+                }
+            }
+
+            if (_countSKU1 > 0 && _countSKU2 > 0)
+            {
+                _isPromoFulfilled = true;
+            }
+            return _isPromoFulfilled;
+        }
+
+        public float ApplyPromo_GetDiscount(List<Product> _product)
+        {
+            float _discPriceDiff = 0;
+            Console.WriteLine("Checking Promo on " + _promoOnID1 + "/" + _promoOnID2 + ": " + _promoDesc + "...");
+
+            _discPriceDiff = (_costSKU1 * _discountOnUnitSKU1 + _costSKU2 * _discountOnUnitSKU2 - _discountedPrice);
+
+            if ((Int32)(_countSKU2 / _discountOnUnitSKU2) >= (Int32)(_countSKU1 / _discountOnUnitSKU1))
+            {
+                _discPriceDiff = (Int32)(_countSKU1 / _discountOnUnitSKU1) * _discPriceDiff;
+            }
+            else
+            {
+                _discPriceDiff = (Int32)(_countSKU2 / _discountOnUnitSKU2) * _discPriceDiff;
+            }
+
+            return _discPriceDiff;
+        }
+    }
+
+    public class CalculatePrice
+    {
+        List<Product> _products = new List<Product>();
+
+        public CalculatePrice(List<Product> p)
+        {
+            _products = p;
+        }
+
+        /// <summary>
+        /// Returns a Dictionary of all available Discounts
+        /// </summary>
+        /// <param name="_products"></param>
+        /// <returns></returns>
+        public Dictionary<string, float> GetDiscount()
+        {
+            //defining avtive Promos
+            IPromotion iPromoOnA = new PromoOnSKU("A", 130, 3);
+            IPromotion iPromoOnB = new PromoOnSKU("B", 45, 2);
+            IPromotion iPromoOnCD = new PromoOnSKU1SKU2("C", "D", 1, 1, 30);
 
             Dictionary<string, float> _promo = new Dictionary<string, float>(); ;
 
             if (iPromoOnA._isPromoFulfilled(_products))
             {
-                _promo.Add("Promo A", iPromoOnA.applypromo(_products));
+                _promo.Add("Promo A", iPromoOnA.ApplyPromo_GetDiscount(_products));
             }
             if (iPromoOnB._isPromoFulfilled(_products))
             {
-                _promo.Add("Promo B", iPromoOnB.applypromo(_products));
+                _promo.Add("Promo B", iPromoOnB.ApplyPromo_GetDiscount(_products));
             }
             if (iPromoOnCD._isPromoFulfilled(_products))
             {
-                _promo.Add("Promo C", iPromoOnCD.applypromo(_products));
+                _promo.Add("Promo C & D", iPromoOnCD.ApplyPromo_GetDiscount(_products));
             }
 
             return _promo;
-
-        }
-
-    }
-
-    interface IPromotion
-    {
-        bool _isPromoFulfilled(List<Product> _product);
-        float applypromo(List<Product> _product);
-    }
-
- class PromoOnA : IPromotion
-    {
-        public string _promoDesc = "Promo A";
-        int _countA = 0;
-        float _costA = 0;
-        public float _discountedPrice = 130;
-        float _discountOnUnit = 3;
-
-        public bool _isPromoFulfilled(List<Product> _products)
-        {
-            bool _isPromoFulfilled = false;
-
-            foreach (Product p in _products)
-            {
-                if (p._id == "A")
-                {
-                    _countA++;
-                    if (_costA == 0)
-                    {
-                        _costA = p._price;
-                    }
-                }
-            }
-            if (_countA >= 3)
-            {
-                _isPromoFulfilled = true;
-            }
-            return _isPromoFulfilled;
-        }
-
-        public float applypromo(List<Product> _product)
-        {
-            float _discPriceDiff = 0;
-            Console.WriteLine("Checking Promo: " + _promoDesc + "...");
-            _discPriceDiff = _costA * _discountOnUnit - _discountedPrice;
-            _discPriceDiff = _discPriceDiff * Convert.ToInt32(_countA / _discountOnUnit);
-
-            return _discPriceDiff;
         }
     }
 
-    class PromoOnB : IPromotion
-    {
-        int _countB = 0;
-        float _costB = 0;
-        public string _promoDesc = "Promo B";
-        public float _discountedPrice = 45;
-        public float _discountOnUnit = 2;
-
-        public bool _isPromoFulfilled(List<Product> _products)
-        {
-            bool _isPromoFulfilled = false;
-
-            foreach (Product p in _products)
-            {
-                if (p._id == "B")
-                {
-                    _countB++;
-                    if (_costB == 0)
-                    {
-                        _costB = p._price;
-                    }
-                }
-            }
-            if (_countB >= 2)
-            {
-                _isPromoFulfilled = true;
-            }
-            return _isPromoFulfilled;
-        }
-
-        public float applypromo(List<Product> _product)
-        {
-            float _discPriceDiff = 0;
-            Console.WriteLine("Checking Promo: " + _promoDesc + "...");
-
-            _discPriceDiff = _costB * _discountOnUnit - _discountedPrice;
-            _discPriceDiff = _discPriceDiff * Convert.ToInt32(_countB / _discountOnUnit);
-
-            return _discPriceDiff;
-        }
-    }
-
-    class PromoOnCD : IPromotion
-    {
-        public string _promoDesc = "Promo C & D";
-        public float _discountedPrice = 30;
-        public float _discountOnUnitC = 1;
-        public float _discountOnUnitD = 1;
-        int _countC = 0;
-        int _countD = 0;
-        float _costC = 0;
-        float _costD = 0;
-
-        public bool _isPromoFulfilled(List<Product> _products)
-        {
-            bool _isPromoFulfilled = false;
-
-
-            foreach (Product p in _products)
-            {
-                if (p._id == "C")
-                {
-                    _countC++;
-                    if (_costC == 0)
-                    {
-                        _costC = p._price;
-                    }
-                }
-                else if (p._id == "D")
-                {
-                    _countD++;
-                    if (_costD == 0)
-                    {
-                        _costD = p._price;
-                    }
-                }
-            }
-
-
-            if (_countC > 0 && _countD > 0)
-            {
-                _isPromoFulfilled = true;
-            }
-            return _isPromoFulfilled;
-        }
-
-        public float applypromo(List<Product> _product)
-        {
-            float _discPriceDiff = 0;
-            Console.WriteLine("Checking Promo: " + _promoDesc + "...");
-
-            _discPriceDiff = (_costC * _discountOnUnitC + _costD * _discountOnUnitD - _discountedPrice);
-
-            if (Convert.ToInt32(_countD / _discountOnUnitD) >= Convert.ToInt32(_countC / _discountOnUnitC))
-            {
-                _discPriceDiff = Convert.ToInt32(_countC / _discountOnUnitC) * _discPriceDiff;
-            }
-            else
-            {
-                _discPriceDiff = Convert.ToInt32(_countD / _discountOnUnitD) * _discPriceDiff;
-            }
-
-            return _discPriceDiff;
-        }
-    }
-
-    class Product
+    public class Product
     {
         public string _id { get; set; }
         public float _price { get; set; }
@@ -232,5 +239,7 @@
                     break;
             }
         }
+
     }
+
 }
